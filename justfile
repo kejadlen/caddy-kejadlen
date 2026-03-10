@@ -1,3 +1,4 @@
 release version:
     docker manifest inspect caddy:{{version}} > /dev/null
-    jj git push --named v{{version}}=@-
+    jj tag set v{{version}} -r @-
+    jj git push
