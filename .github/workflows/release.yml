@@ -1,0 +1,137 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      caddy-version:
+        description: Caddy version, like 2.11.4 (defaults to the latest release)
+        required: false
+        type: string
+      caddy-tailscale-version:
+        description: caddy-tailscale version, commit, or branch (defaults to the latest)
+        required: false
+        type: string
+      caddy-ratelimit-version:
+        description: caddy-ratelimit version, commit, or branch (defaults to the latest)
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # checkout.
+      packages: write # push image to GHCR.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Resolve versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUTS_CADDY_VERSION: ${{ inputs.caddy-version }}
+          INPUTS_CADDY_TAILSCALE_VERSION: ${{ inputs.caddy-tailscale-version }}
+          INPUTS_CADDY_RATELIMIT_VERSION: ${{ inputs.caddy-ratelimit-version }}
+        run: |
+          set -euo pipefail
+
+          latest=$(gh api repos/caddyserver/caddy/releases/latest --jq .tag_name)
+          latest=${latest#v}
+          caddy=${INPUTS_CADDY_VERSION#v}
+          caddy=${caddy:-$latest}
+          if [[ ! $caddy =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Caddy version '$caddy' isn't in X.Y.Z form."
+            exit 1
+          fi
+          if ! docker manifest inspect "caddy:$caddy-builder" > /dev/null; then
+            echo "::error::caddy:$caddy-builder isn't on Docker Hub. Check the version, or wait for the official image to publish it."
+            exit 1
+          fi
+
+          # Pin plugins to concrete module versions so the build cache can't serve stale ones.
+          resolve() {
+            local module=$1 query=$2 url info
+            if [[ ! $query =~ ^[a-z0-9._-]*$ ]]; then
+              echo "::error::$module version '$query' may only contain lowercase letters, digits, '.', '_', and '-'." >&2
+              return 1
+            fi
+            if [[ -z $query ]]; then
+              url="https://proxy.golang.org/$module/@latest"
+            else
+              url="https://proxy.golang.org/$module/@v/$query.info"
+            fi
+            if ! info=$(curl -fsSL "$url"); then
+              echo "::error::The Go module proxy couldn't resolve $module@${query:-latest}." >&2
+              return 1
+            fi
+            jq -r .Version <<< "$info"
+          }
+          tailscale=$(resolve github.com/tailscale/caddy-tailscale "$INPUTS_CADDY_TAILSCALE_VERSION")
+          ratelimit=$(resolve github.com/mholt/caddy-ratelimit "$INPUTS_CADDY_RATELIMIT_VERSION")
+
+          is_latest=false
+          [[ $caddy == "$latest" ]] && is_latest=true
+
+          {
+            echo "caddy=$caddy"
+            echo "calver=$(date -u +%Y.%m.%d)"
+            echo "latest=$is_latest"
+            echo "tailscale=$tailscale"
+            echo "ratelimit=$ratelimit"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "| Component | Version |"
+            echo "| --- | --- |"
+            echo "| Caddy | $caddy |"
+            echo "| caddy-tailscale | $tailscale |"
+            echo "| caddy-ratelimit | $ratelimit |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/kejadlen/caddy-tailscale
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ steps.versions.outputs.caddy }}-${{ steps.versions.outputs.calver }}
+            type=raw,value=${{ steps.versions.outputs.caddy }}
+            type=raw,value=latest,enable=${{ steps.versions.outputs.latest }}
+          labels: |
+            dev.kejadlen.caddy-tailscale.version=${{ steps.versions.outputs.tailscale }}
+            dev.kejadlen.caddy-ratelimit.version=${{ steps.versions.outputs.ratelimit }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          push: true
+          build-args: |
+            CADDY_VERSION=${{ steps.versions.outputs.caddy }}
+            CADDY_TAILSCALE_VERSION=${{ steps.versions.outputs.tailscale }}
+            CADDY_RATELIMIT_VERSION=${{ steps.versions.outputs.ratelimit }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
