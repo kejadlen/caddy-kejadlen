@@ -1,9 +1,9 @@
-# caddy-tailscale
+# caddy-kejadlen
 
 A [Caddy](https://caddyserver.com) image with the
 [caddy-tailscale](https://github.com/tailscale/caddy-tailscale) and
 [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) plugins, published
-to `ghcr.io/kejadlen/caddy-tailscale`.
+to `ghcr.io/kejadlen/caddy-kejadlen`.
 
 ## Tags
 
