@@ -26,7 +26,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  # checkout.
+      contents: write # checkout, and cut the release.
       packages: write # push image to GHCR.
 
     steps:
@@ -135,3 +135,37 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STEPS_VERSIONS_OUTPUTS_CADDY: ${{ steps.versions.outputs.caddy }}
+          STEPS_VERSIONS_OUTPUTS_CALVER: ${{ steps.versions.outputs.calver }}
+          STEPS_VERSIONS_OUTPUTS_TAILSCALE: ${{ steps.versions.outputs.tailscale }}
+          STEPS_VERSIONS_OUTPUTS_RATELIMIT: ${{ steps.versions.outputs.ratelimit }}
+          STEPS_META_OUTPUTS_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+
+          tag="v$STEPS_VERSIONS_OUTPUTS_CADDY-$STEPS_VERSIONS_OUTPUTS_CALVER"
+
+          # Indented code blocks instead of fences: backticks in --notes-file are
+          # fine, but these notes also go through echo.
+          {
+            echo "| Component | Version |"
+            echo "| --- | --- |"
+            echo "| Caddy | $STEPS_VERSIONS_OUTPUTS_CADDY |"
+            echo "| caddy-tailscale | $STEPS_VERSIONS_OUTPUTS_TAILSCALE |"
+            echo "| caddy-ratelimit | $STEPS_VERSIONS_OUTPUTS_RATELIMIT |"
+            echo
+            echo "Images pushed:"
+            echo
+            sed 's/^/    /' <<< "$STEPS_META_OUTPUTS_TAGS"
+          } > notes.md
+
+          # A same-day rebuild reuses the image tag, so reuse the release too.
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --notes-file notes.md
+          fi

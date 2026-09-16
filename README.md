@@ -22,3 +22,7 @@ just release [caddy] [tailscale] [ratelimit]
 Blank versions default to the latest. A plugin version can be a tag, a commit
 hash, or a branch. The run summary and image labels record the plugin versions
 that went into the build.
+
+A successful run also cuts a GitHub release tagged `v<caddy>-<yyyy.mm.dd>`,
+like `v2.11.4-2026.09.14`, with the same versions and the image tags it
+pushed.
