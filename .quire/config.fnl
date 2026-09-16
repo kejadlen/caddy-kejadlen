@@ -1,1 +1,1 @@
-{:mirrors {"https://github.com/kejadlen/docker-kejadlen.git" :github-mirror}}
+{:mirrors {"https://github.com/kejadlen/caddy-kejadlen.git" :github-mirror}}
