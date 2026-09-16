@@ -4,11 +4,13 @@ FROM caddy:${CADDY_VERSION}-builder AS builder
 
 ARG CADDY_RATELIMIT_VERSION
 ARG CADDY_TAILSCALE_VERSION
+ARG CADDY_DNSIMPLE_VERSION
 
 # An empty plugin version lets xcaddy pick the latest.
 RUN xcaddy build \
     --with "github.com/mholt/caddy-ratelimit${CADDY_RATELIMIT_VERSION:+@$CADDY_RATELIMIT_VERSION}" \
-    --with "github.com/tailscale/caddy-tailscale${CADDY_TAILSCALE_VERSION:+@$CADDY_TAILSCALE_VERSION}"
+    --with "github.com/tailscale/caddy-tailscale${CADDY_TAILSCALE_VERSION:+@$CADDY_TAILSCALE_VERSION}" \
+    --with "github.com/caddy-dns/dnsimple${CADDY_DNSIMPLE_VERSION:+@$CADDY_DNSIMPLE_VERSION}"
 
 FROM caddy:${CADDY_VERSION}
 

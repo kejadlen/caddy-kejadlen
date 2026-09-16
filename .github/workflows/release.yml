@@ -15,6 +15,10 @@ on:
         description: caddy-ratelimit version, commit, or branch (defaults to the latest)
         required: false
         type: string
+      caddy-dnsimple-version:
+        description: caddy-dns/dnsimple version, commit, or branch (defaults to the latest)
+        required: false
+        type: string
 
 permissions: {}
 
@@ -42,6 +46,7 @@ jobs:
           INPUTS_CADDY_VERSION: ${{ inputs.caddy-version }}
           INPUTS_CADDY_TAILSCALE_VERSION: ${{ inputs.caddy-tailscale-version }}
           INPUTS_CADDY_RATELIMIT_VERSION: ${{ inputs.caddy-ratelimit-version }}
+          INPUTS_CADDY_DNSIMPLE_VERSION: ${{ inputs.caddy-dnsimple-version }}
         run: |
           set -euo pipefail
 
@@ -78,6 +83,7 @@ jobs:
           }
           tailscale=$(resolve github.com/tailscale/caddy-tailscale "$INPUTS_CADDY_TAILSCALE_VERSION")
           ratelimit=$(resolve github.com/mholt/caddy-ratelimit "$INPUTS_CADDY_RATELIMIT_VERSION")
+          dnsimple=$(resolve github.com/caddy-dns/dnsimple "$INPUTS_CADDY_DNSIMPLE_VERSION")
 
           is_latest=false
           [[ $caddy == "$latest" ]] && is_latest=true
@@ -88,6 +94,7 @@ jobs:
             echo "latest=$is_latest"
             echo "tailscale=$tailscale"
             echo "ratelimit=$ratelimit"
+            echo "dnsimple=$dnsimple"
           } >> "$GITHUB_OUTPUT"
 
           {
@@ -96,6 +103,7 @@ jobs:
             echo "| Caddy | $caddy |"
             echo "| caddy-tailscale | $tailscale |"
             echo "| caddy-ratelimit | $ratelimit |"
+            echo "| caddy-dns/dnsimple | $dnsimple |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Docker Buildx
@@ -114,6 +122,7 @@ jobs:
           labels: |
             dev.kejadlen.caddy-tailscale.version=${{ steps.versions.outputs.tailscale }}
             dev.kejadlen.caddy-ratelimit.version=${{ steps.versions.outputs.ratelimit }}
+            dev.kejadlen.caddy-dnsimple.version=${{ steps.versions.outputs.dnsimple }}
 
       - name: Log in to the Container registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -131,6 +140,7 @@ jobs:
             CADDY_VERSION=${{ steps.versions.outputs.caddy }}
             CADDY_TAILSCALE_VERSION=${{ steps.versions.outputs.tailscale }}
             CADDY_RATELIMIT_VERSION=${{ steps.versions.outputs.ratelimit }}
+            CADDY_DNSIMPLE_VERSION=${{ steps.versions.outputs.dnsimple }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -143,6 +153,7 @@ jobs:
           STEPS_VERSIONS_OUTPUTS_CALVER: ${{ steps.versions.outputs.calver }}
           STEPS_VERSIONS_OUTPUTS_TAILSCALE: ${{ steps.versions.outputs.tailscale }}
           STEPS_VERSIONS_OUTPUTS_RATELIMIT: ${{ steps.versions.outputs.ratelimit }}
+          STEPS_VERSIONS_OUTPUTS_DNSIMPLE: ${{ steps.versions.outputs.dnsimple }}
           STEPS_META_OUTPUTS_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
@@ -157,6 +168,7 @@ jobs:
             echo "| Caddy | $STEPS_VERSIONS_OUTPUTS_CADDY |"
             echo "| caddy-tailscale | $STEPS_VERSIONS_OUTPUTS_TAILSCALE |"
             echo "| caddy-ratelimit | $STEPS_VERSIONS_OUTPUTS_RATELIMIT |"
+            echo "| caddy-dns/dnsimple | $STEPS_VERSIONS_OUTPUTS_DNSIMPLE |"
             echo
             echo "Images pushed:"
             echo

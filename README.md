@@ -1,9 +1,10 @@
 # caddy-kejadlen
 
 A [Caddy](https://caddyserver.com) image with the
-[caddy-tailscale](https://github.com/tailscale/caddy-tailscale) and
-[caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) plugins, published
-to `ghcr.io/kejadlen/caddy-kejadlen`.
+[caddy-tailscale](https://github.com/tailscale/caddy-tailscale),
+[caddy-ratelimit](https://github.com/mholt/caddy-ratelimit), and
+[dnsimple](https://github.com/caddy-dns/dnsimple) plugins, published to
+`ghcr.io/kejadlen/caddy-kejadlen`.
 
 ## Tags
 
@@ -16,7 +17,7 @@ to `ghcr.io/kejadlen/caddy-kejadlen`.
 Run the release workflow from the Actions tab, or from the terminal:
 
 ```sh
-just release [caddy] [tailscale] [ratelimit]
+just release [caddy] [tailscale] [ratelimit] [dnsimple]
 ```
 
 Blank versions default to the latest. A plugin version can be a tag, a commit
