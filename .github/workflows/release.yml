@@ -177,7 +177,7 @@ jobs:
 
           # A same-day rebuild reuses the image tag, so reuse the release too.
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release edit "$tag" --notes-file notes.md
+            gh release edit "$tag" --title "$tag" --notes-file notes.md
           else
-            gh release create "$tag" --target "$GITHUB_SHA" --notes-file notes.md
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md
           fi
