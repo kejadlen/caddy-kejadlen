@@ -85,6 +85,14 @@ jobs:
           ratelimit=$(resolve github.com/mholt/caddy-ratelimit "$INPUTS_CADDY_RATELIMIT_VERSION")
           dnsimple=$(resolve github.com/caddy-dns/dnsimple "$INPUTS_CADDY_DNSIMPLE_VERSION")
 
+          # Stamped into the binary, since xcaddy builds leave Tailscale reporting X.Y.Z-ERR-BuildInfo.
+          tailscale_com=$(curl -fsSL "https://proxy.golang.org/github.com/tailscale/caddy-tailscale/@v/$tailscale.mod" |
+            awk '$1 == "tailscale.com" { sub(/^v/, "", $2); print $2 }')
+          if [[ -z $tailscale_com ]]; then
+            echo "::error::Couldn't find the tailscale.com version in caddy-tailscale@$tailscale's go.mod."
+            exit 1
+          fi
+
           is_latest=false
           [[ $caddy == "$latest" ]] && is_latest=true
 
@@ -93,6 +101,7 @@ jobs:
             echo "calver=$(date -u +%Y.%m.%d)"
             echo "latest=$is_latest"
             echo "tailscale=$tailscale"
+            echo "tailscale_com=$tailscale_com"
             echo "ratelimit=$ratelimit"
             echo "dnsimple=$dnsimple"
           } >> "$GITHUB_OUTPUT"
@@ -102,6 +111,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Caddy | $caddy |"
             echo "| caddy-tailscale | $tailscale |"
+            echo "| tailscale.com | $tailscale_com |"
             echo "| caddy-ratelimit | $ratelimit |"
             echo "| caddy-dns/dnsimple | $dnsimple |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -121,6 +131,7 @@ jobs:
             type=raw,value=latest,enable=${{ steps.versions.outputs.latest }}
           labels: |
             dev.kejadlen.caddy-tailscale.version=${{ steps.versions.outputs.tailscale }}
+            dev.kejadlen.tailscale.version=${{ steps.versions.outputs.tailscale_com }}
             dev.kejadlen.caddy-ratelimit.version=${{ steps.versions.outputs.ratelimit }}
             dev.kejadlen.caddy-dnsimple.version=${{ steps.versions.outputs.dnsimple }}
 
@@ -139,6 +150,7 @@ jobs:
           build-args: |
             CADDY_VERSION=${{ steps.versions.outputs.caddy }}
             CADDY_TAILSCALE_VERSION=${{ steps.versions.outputs.tailscale }}
+            TAILSCALE_VERSION=${{ steps.versions.outputs.tailscale_com }}
             CADDY_RATELIMIT_VERSION=${{ steps.versions.outputs.ratelimit }}
             CADDY_DNSIMPLE_VERSION=${{ steps.versions.outputs.dnsimple }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -152,6 +164,7 @@ jobs:
           STEPS_VERSIONS_OUTPUTS_CADDY: ${{ steps.versions.outputs.caddy }}
           STEPS_VERSIONS_OUTPUTS_CALVER: ${{ steps.versions.outputs.calver }}
           STEPS_VERSIONS_OUTPUTS_TAILSCALE: ${{ steps.versions.outputs.tailscale }}
+          STEPS_VERSIONS_OUTPUTS_TAILSCALE_COM: ${{ steps.versions.outputs.tailscale_com }}
           STEPS_VERSIONS_OUTPUTS_RATELIMIT: ${{ steps.versions.outputs.ratelimit }}
           STEPS_VERSIONS_OUTPUTS_DNSIMPLE: ${{ steps.versions.outputs.dnsimple }}
           STEPS_META_OUTPUTS_TAGS: ${{ steps.meta.outputs.tags }}
@@ -167,6 +180,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Caddy | $STEPS_VERSIONS_OUTPUTS_CADDY |"
             echo "| caddy-tailscale | $STEPS_VERSIONS_OUTPUTS_TAILSCALE |"
+            echo "| tailscale.com | $STEPS_VERSIONS_OUTPUTS_TAILSCALE_COM |"
             echo "| caddy-ratelimit | $STEPS_VERSIONS_OUTPUTS_RATELIMIT |"
             echo "| caddy-dns/dnsimple | $STEPS_VERSIONS_OUTPUTS_DNSIMPLE |"
             echo
